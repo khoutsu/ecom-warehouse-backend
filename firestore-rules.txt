@@ -1,0 +1,34 @@
+// Firestore Security Rules for Ecom Warehouse
+// Copy and paste these rules into your Firebase Console > Firestore Database > Rules
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow authenticated users to read and write inventory
+    match /inventory/{document} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Allow authenticated users to read and write their own user documents
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // For testing purposes only - remove in production
+    // match /{document=**} {
+    //   allow read, write: if true;
+    // }
+  }
+}
+
+// Instructions:
+// 1. Go to Firebase Console (https://console.firebase.google.com)
+// 2. Select your project (ecomandwarehouse)
+// 3. Click on "Firestore Database" in the left sidebar
+// 4. Click on the "Rules" tab
+// 5. Replace the existing rules with the rules above
+// 6. Click "Publish" to save the changes
+
+// Current Issue:
+// Your Firestore has default rules that deny all access except to authenticated users
+// The rules above will allow authenticated users to read/write inventory and user data

@@ -4,6 +4,10 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 require('dotenv').config();
 
+// Import middleware
+const { generalLimiter } = require('./middleware/rateLimiter');
+const { errorHandler, notFound } = require('./middleware/errorHandler');
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -17,24 +21,37 @@ try {
   console.log('💡 Server will run without Firebase. Set up Firebase credentials in .env to enable database features.');
 }
 
-// Middleware
+// Security middleware
 app.use(helmet());
-app.use(cors());
-app.use(morgan('combined'));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
-// Routes
+// CORS configuration
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  credentials: true
+}));
+
+// Logging middleware
+app.use(morgan('combined'));
+
+// Rate limiting
+app.use(generalLimiter);
+
+// Body parsing middleware
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Health check route
 app.get('/', (req, res) => {
   res.json({ 
     message: 'E-commerce Warehouse API',
     version: '1.0.0',
     status: 'active',
-    firebase: process.env.FIREBASE_PROJECT_ID ? 'configured' : 'not configured'
+    firebase: process.env.FIREBASE_PROJECT_ID ? 'configured' : 'not configured',
+    timestamp: new Date().toISOString()
   });
 });
 
-// API Routes (to be added)
+// API Routes
 try {
   app.use('/api/auth', require('./routes/auth'));
   app.use('/api/products', require('./routes/products'));
@@ -45,21 +62,14 @@ try {
   console.log('⚠️  Some routes may not work without Firebase configuration');
 }
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ 
-    error: 'Something went wrong!',
-    message: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
-  });
-});
+// 404 handler (must be before error handler)
+app.use(notFound);
 
-// 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({ error: 'Route not found' });
-});
+// Global error handling middleware (must be last)
+app.use(errorHandler);
 
 app.listen(PORT, () => {
-  console.log(` Server running on port ${PORT}`);
-  console.log(` Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`📁 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🔗 API URL: http://localhost:${PORT}`);
 });

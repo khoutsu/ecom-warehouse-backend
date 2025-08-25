@@ -2,30 +2,45 @@ const express = require('express');
 const router = express.Router();
 const ProductModel = require('../models/Product');
 
+// Import middleware
+const authMiddleware = require('../middleware/auth');
+const { adminMiddleware } = require('../middleware/roles');
+const { productLimiter } = require('../middleware/rateLimiter');
+const { validateProduct, validateId, validatePagination } = require('../middleware/validation');
+const { asyncHandler } = require('../middleware/errorHandler');
+
 // @route   GET /api/products
-// @desc    Get all products
+// @desc    Get all products with pagination
 // @access  Public
-router.get('/', async (req, res) => {
-  try {
-    const products = await ProductModel.getAll();
+router.get('/', 
+  productLimiter,
+  validatePagination,
+  asyncHandler(async (req, res) => {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const products = await ProductModel.getAll(limit, skip);
+    const total = await ProductModel.getCount();
+
     res.json({
       success: true,
       count: products.length,
+      total,
+      page,
+      pages: Math.ceil(total / limit),
       data: products
     });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
+  })
+);
 
 // @route   GET /api/products/:id
 // @desc    Get product by ID
 // @access  Public
-router.get('/:id', async (req, res) => {
-  try {
+router.get('/:id', 
+  productLimiter,
+  validateId,
+  asyncHandler(async (req, res) => {
     const product = await ProductModel.getById(req.params.id);
     if (!product) {
       return res.status(404).json({
@@ -37,17 +52,12 @@ router.get('/:id', async (req, res) => {
       success: true,
       data: product
     });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
+  })
+);
 
 // @route   POST /api/products
 // @desc    Create new product
-// @access  Private
+// @access  Private/Admin
 router.post('/', async (req, res) => {
   try {
     const { name, description, price, category, sku, barcode } = req.body;

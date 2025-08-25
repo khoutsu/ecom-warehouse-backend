@@ -1,0 +1,45 @@
+// Firebase Storage Rules for Ecom Warehouse
+// Copy and paste these rules into your Firebase Console > Storage > Rules
+
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Allow authenticated users to upload and read product images
+    match /products/{productId}/{fileName} {
+      allow read: if true; // Allow anyone to read product images
+      allow write: if request.auth != null // Only authenticated users can upload
+                   && request.resource.size < 5 * 1024 * 1024 // Max 5MB file size
+                   && request.resource.contentType.matches('image/.*'); // Only images
+    }
+    
+    // For testing purposes - more permissive rules (remove in production)
+    match /{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
+
+// Instructions to update Firebase Storage Rules:
+// 1. Go to Firebase Console (https://console.firebase.google.com)
+// 2. Select your project (ecomandwarehouse)
+// 3. Click on "Storage" in the left sidebar
+// 4. Click on the "Rules" tab
+// 5. Replace the existing rules with the rules above
+// 6. Click "Publish" to save the changes
+
+// CORS Configuration:
+// Firebase Storage should automatically handle CORS for web applications.
+// If you still have CORS issues, you may need to configure CORS using gsutil:
+// 
+// 1. Install Google Cloud SDK
+// 2. Run: gsutil cors set cors.json gs://ecomandwarehouse.appspot.com
+// 
+// Where cors.json contains:
+// [
+//   {
+//     "origin": ["*"],
+//     "method": ["GET", "PUT", "POST", "DELETE"],
+//     "maxAgeSeconds": 3600,
+//     "responseHeader": ["Content-Type", "Access-Control-Allow-Origin"]
+//   }
+// ]
