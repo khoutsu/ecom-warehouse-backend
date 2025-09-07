@@ -22,7 +22,6 @@ Ecom-Warehouse/
 
 ### Prerequisites
 - Node.js (v14 or higher)
-- MongoDB
 - npm or yarn
 
 ### Installation
